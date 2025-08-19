@@ -123,60 +123,6 @@ ALTER COLUMN seed TYPE NUMERIC,           --Calculations can now include decimal
 ALTER COLUMN venture TYPE NUMERIC,
 ALTER COLUMN round_b TYPE NUMERIC;
 
---Creating Seperate Table for UK's Closed Startups and --------------------------------
-CREATE TABLE "ClosedGBRInvestment"(
-"name" VARCHAR, 
-market VARCHAR,
-funding_total_usd VARCHAR,
-status VARCHAR,
-country_code VARCHAR(3),
-state_code VARCHAR(2),
-city VARCHAR,
-funding_rounds INTEGER,
-founded_at DATE,
-founded_month VARCHAR,
-founded_quarter VARCHAR, 
-founded_year INTEGER,
-first_funding_at DATE,
-last_funding_at DATE,
-seed BIGINT,
-venture BIGINT,
-equity_crowdfunding BIGINT, 
-undisclosed BIGINT,
-convertible_note BIGINT,
-debt_financing BIGINT,
-angel BIGINT,
-"grant" BIGINT,
-private_equity BIGINT,
-post_ipo_equity BIGINT,
-post_ipo_debt BIGINT,
-secondary_market BIGINT,
-product_crowdfunding BIGINT,
-round_A BIGINT,
-round_B BIGINT,
-round_C BIGINT,
-round_D BIGINT,
-round_E BIGINT,
-round_F BIGINT,
-round_G BIGINT,
-round_H BIGINT
-);
-INSERT INTO "ClosedGBRInvestment"("name", market, funding_total_usd, status,
-country_code, state_code, city, funding_rounds, founded_at, founded_month, founded_quarter, 
-founded_year, first_funding_at, last_funding_at, seed, venture, equity_crowdfunding, undisclosed,
-convertible_note, debt_financing, angel, "grant", private_equity, post_ipo_equity,
-post_ipo_debt, secondary_market, product_crowdfunding, round_A, round_B, round_C, round_D,
-round_E, round_F, round_G, round_H)
-SELECT * FROM "GBRInvestments2010" I2
-WHERE I2.status = 'closed';
-SELECT * FROM "ClosedGBRInvestment";
-
--- USA'S Debt taking startups (more debt_financing, visible post ipo debt, less convertible note)---------------------
-SELECT I2."name", I2.debt_financing, I2.convertible_note, I2.post_ipo_debt FROM "Investments" I2
-WHERE I2.status = 'operating'
-AND I2.debt_financing != 0 OR I2.convertible_note != 0 OR I2.post_ipo_debt != 0
-AND I2.country_code = 'USA';
-
 -- By year, Information about the startups like sucessing of seed, expected funds, etc---------------------------------
 WITH HighMarket AS(                             --HighMarket CTE Groups Markets and their total funds collected and ranks the markets in each year                 
 SELECT
@@ -202,6 +148,8 @@ Information AS(         --Information CTE displays the other characteristics of 
 SELECT 
 EXTRACT(YEAR FROM first_funding_at) AS "Year",
 SUM(funding_total_usd) AS "TotalFunds",   -- Cannot calculate fund duration as this spans over years and this calculates per year 
+ROUND(AVG(seed)) AS "AverageSeed",
+ROUND(AVG(Venture)) AS "AverageVenture",
 COUNT(*) AS "NumOfCompanies",
 ROUND((CAST(COUNT(*) FILTER (WHERE status = 'operating') AS NUMERIC)/CAST(COUNT(*) AS NUMERIC)*100),2) AS "OperatingSuccess",  --Cannot use AVG as COUNT(*) is inside the expression
 ROUND((CAST(COUNT(*) FILTER (WHERE round_a != 0) AS NUMERIC)/CAST(COUNT(*) AS Numeric)*100),2) AS "RoundASuccess",
@@ -210,13 +158,14 @@ ROUND((CAST(COUNT(*) FILTER (WHERE round_b != 0) AS NUMERIC)/CAST(COUNT(*) AS Nu
 ROUND(AVG(round_b)) AS "ExpectedBFunds",
 ROUND((CAST(COUNT(*) FILTER (WHERE seed != 0) AS NUMERIC)/CAST(COUNT(*) AS Numeric)*100),2) AS "SeedSuccess",
 ROUND((CAST(COUNT(*) FILTER (WHERE venture != 0) AS NUMERIC)/CAST(COUNT(*) AS Numeric)*100),2) AS "VentureSuccess",
+ROUND(AVG(last_funding_at - first_funding_at)) AS "DurationOfFundsDays",
 ROUND((CAST(COUNT(*) FILTER (WHERE angel!= 0 OR equity_crowdfunding !=0 OR "grant"!= 0 OR post_ipo_equity != 0 OR secondary_market != 0 ) AS NUMERIC)/CAST(COUNT(*) AS Numeric)*100),2) AS "ExternalSuccess",
 ROUND((CAST(COUNT(*) FILTER (WHERE convertible_note!= 0 OR debt_financing !=0 OR post_ipo_debt != 0) AS NUMERIC)/CAST(COUNT(*) AS Numeric)*100),2) AS "ChanceOfTakingDebt"
 FROM "GBRInvestments2000"
 GROUP BY EXTRACT(YEAR FROM first_funding_at)
 ORDER BY "Year" ASC)
 SELECT 
-I."Year", I."TotalFunds", I."NumOfCompanies",
+I."Year", I."TotalFunds", I."AverageSeed", I."AverageVenture",I."NumOfCompanies",
 H.market,
 H.funding_total_usd AS totalfunds,
 H.seed,
